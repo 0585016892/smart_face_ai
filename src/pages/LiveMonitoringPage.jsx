@@ -176,7 +176,7 @@ const getBoxStyle = (box, imageWidth, imageHeight) => {
 };
 
 // ======================================================
-// TRACK LABEL
+// DETECTION BOX
 // ======================================================
 
 function LiveBox({ track, imageWidth, imageHeight }) {
@@ -233,9 +233,7 @@ function CameraFrame({
   const imageWidth = Number(snapshot?.imageWidth) || 16;
   const imageHeight = Number(snapshot?.imageHeight) || 9;
 
-  const connected = Boolean(status?.connected);
-  const running = Boolean(status?.running);
-  const online = connected && running;
+  const online = Boolean(status?.connected && status?.running);
 
   const knownCount = tracks.filter((track) => track.status === "known").length;
 
@@ -340,6 +338,7 @@ function CameraFrame({
             <ScanFace size={13} />
             AI FACE DETECTION
           </span>
+
           <span>{tracks.length} đối tượng</span>
         </div>
       </div>
@@ -376,7 +375,7 @@ function CameraFrame({
 }
 
 // ======================================================
-// STAT CARD
+// STATISTICS
 // ======================================================
 
 function LiveStatsCard({
@@ -415,32 +414,31 @@ function LiveStatsCard({
   ];
 
   return (
-    <Card className="lm-stats-card" bordered={false}>
-      <div className="lm-stats-container">
-        {stats.map((item, index) => {
-          const Icon = item.icon;
+    <div className="lm-stats-grid">
+      {stats.map((item) => {
+        const Icon = item.icon;
 
-          return (
-            <div className={`lm-stats-item ${item.variant}`} key={item.label}>
-              <div className="lm-stats-icon">
-                <Icon size={19} />
-              </div>
+        return (
+          <div className={`lm-stats-item ${item.variant}`} key={item.label}>
+            <div className="lm-stats-icon">
+              <Icon size={20} />
+            </div>
 
-              <div className="lm-stats-content">
-                <span className="lm-stats-label">{item.label}</span>
+            <div className="lm-stats-content">
+              <span className="lm-stats-label">{item.label}</span>
 
-                <div className="lm-stats-value">
-                  <strong>{item.value}</strong>
-                  {item.suffix && (
-                    <span className="lm-stats-suffix">{item.suffix}</span>
-                  )}
-                </div>
+              <div className="lm-stats-value">
+                <strong>{item.value}</strong>
+
+                {item.suffix && (
+                  <span className="lm-stats-suffix">{item.suffix}</span>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
-    </Card>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -468,7 +466,7 @@ export default function LiveMonitoringPage() {
   const mountedRef = useRef(true);
 
   // --------------------------------------------------
-  // LOAD CAMERA + STATUS
+  // LOAD CAMERA AND STATUS
   // --------------------------------------------------
 
   const loadData = useCallback(async (showLoading = false) => {
@@ -537,18 +535,18 @@ export default function LiveMonitoringPage() {
 
     loadData();
 
-    const timer = setInterval(() => {
+    const timer = window.setInterval(() => {
       loadData(false);
     }, STATUS_POLL_INTERVAL);
 
     return () => {
       mountedRef.current = false;
-      clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, [loadData]);
 
   // --------------------------------------------------
-  // CAMERA / STATUS MAP
+  // CAMERA MAP
   // --------------------------------------------------
 
   const cameraItems = useMemo(() => {
@@ -659,7 +657,7 @@ export default function LiveMonitoringPage() {
           URL.revokeObjectURL(previousUrl);
         }
       } catch (err) {
-        // Lần polling tiếp theo sẽ tự thử lại.
+        // Tự thử lại ở lần polling tiếp theo.
       } finally {
         snapshotBusyRef.current.delete(key);
       }
@@ -673,19 +671,20 @@ export default function LiveMonitoringPage() {
 
     fetchSnapshots();
 
-    const timer = setInterval(fetchSnapshots, SNAPSHOT_POLL_INTERVAL);
+    const timer = window.setInterval(fetchSnapshots, SNAPSHOT_POLL_INTERVAL);
 
     return () => {
       active = false;
-      clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, [cameraItems]);
 
   // --------------------------------------------------
-  // CLEANUP OBJECT URL
+  // CLEANUP SNAPSHOT URL
   // --------------------------------------------------
 
   useEffect(() => {
+    // Lưu tham chiếu hiện tại vào biến cục bộ
     const snapshotUrls = snapshotUrlsRef.current;
     const snapshotBusy = snapshotBusyRef.current;
 
@@ -696,7 +695,11 @@ export default function LiveMonitoringPage() {
         }
       });
 
-      snapshotUrlsRef.current = {};
+      // Dọn dữ liệu khi component unmount
+      Object.keys(snapshotUrls).forEach((key) => {
+        delete snapshotUrls[key];
+      });
+
       snapshotBusy.clear();
     };
   }, []);
@@ -712,7 +715,7 @@ export default function LiveMonitoringPage() {
   const selectedSnapshot = snapshots[String(selectedCameraId)];
 
   // --------------------------------------------------
-  // LIVE STATISTICS
+  // STATISTICS
   // --------------------------------------------------
 
   const allTracks = useMemo(
@@ -741,28 +744,59 @@ export default function LiveMonitoringPage() {
   ).length;
 
   // --------------------------------------------------
-  // FULLSCREEN
+  // FULLSCREEN - MOBILE LANDSCAPE ONLY
   // --------------------------------------------------
+
+  const unlockMobileOrientation = useCallback(() => {
+    try {
+      window.screen?.orientation?.unlock?.();
+    } catch (error) {
+      console.warn("Không thể mở khóa hướng màn hình:", error);
+    }
+  }, []);
+
+  const [mobileExpandedCamera, setMobileExpandedCamera] = useState(null);
 
   const handleFullscreen = useCallback(
     async (cameraId = null) => {
-      try {
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+      if (isMobile) {
+        const id =
+          cameraId !== null ? String(cameraId) : String(selectedCameraId);
+
+        setMobileExpandedCamera((current) => (current === id ? null : id));
+
         if (cameraId !== null) {
           setSelectedCameraId(cameraId);
         }
 
+        return;
+      }
+
+      try {
         const key =
           cameraId !== null ? String(cameraId) : String(selectedCameraId);
 
         const target = frameElementsRef.current[key] || containerRef.current;
 
-        if (!document.fullscreenElement) {
-          await target?.requestFullscreen?.();
-        } else {
+        if (document.fullscreenElement) {
           await document.exitFullscreen?.();
+          return;
         }
-      } catch (err) {
-        console.error("Fullscreen error:", err);
+
+        if (!target?.requestFullscreen) {
+          console.warn("Trình duyệt không hỗ trợ Fullscreen API");
+          return;
+        }
+
+        if (cameraId !== null) {
+          setSelectedCameraId(cameraId);
+        }
+
+        await target.requestFullscreen();
+      } catch (error) {
+        console.error("Fullscreen error:", error);
       }
     },
     [selectedCameraId],
@@ -770,15 +804,22 @@ export default function LiveMonitoringPage() {
 
   useEffect(() => {
     const handleChange = () => {
-      setFullscreen(Boolean(document.fullscreenElement));
+      const isFullscreen = Boolean(document.fullscreenElement);
+
+      setFullscreen(isFullscreen);
+
+      if (!isFullscreen) {
+        unlockMobileOrientation();
+      }
     };
 
     document.addEventListener("fullscreenchange", handleChange);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleChange);
+      unlockMobileOrientation();
     };
-  }, []);
+  }, [unlockMobileOrientation]);
 
   // --------------------------------------------------
   // LOADING
@@ -790,25 +831,23 @@ export default function LiveMonitoringPage() {
         <div className="lm-loading-heading">
           <Skeleton active paragraph={{ rows: 1 }} />
         </div>
-        <Row gutter={[16, 16]}>
+
+        <div className="lm-loading-stats">
           {[1, 2, 3, 4].map((item) => (
-            <Col xs={12} lg={6} key={item}>
-              <Card className="lm-stat-card">
-                <Skeleton active paragraph={{ rows: 2 }} />
-              </Card>
-            </Col>
+            <Card key={item}>
+              <Skeleton active paragraph={{ rows: 2 }} />
+            </Card>
           ))}
-        </Row>
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        </div>
+
+        <div className="lm-loading-cameras">
           {[1, 2, 3].map((item) => (
-            <Col xs={24} md={12} xl={8} key={item}>
-              <Card>
-                <Skeleton.Image active style={{ width: "100%", height: 190 }} />
-                <Skeleton active paragraph={{ rows: 2 }} />
-              </Card>
-            </Col>
+            <Card key={item}>
+              <Skeleton.Image active />
+              <Skeleton active paragraph={{ rows: 2 }} />
+            </Card>
           ))}
-        </Row>
+        </div>
       </div>
     );
   }
@@ -820,14 +859,14 @@ export default function LiveMonitoringPage() {
   return (
     <div className="live-monitoring-page" ref={containerRef}>
       <div className="lm-page-inner">
-        {/* PAGE HEADER */}
+        {/* HEADER */}
         <div className="lm-page-header">
           <div className="lm-page-heading">
             <div className="lm-page-icon">
-              <Activity size={25} />
+              <Activity size={24} />
             </div>
 
-            <div>
+            <div className="lm-page-heading-text">
               <div className="lm-eyebrow">
                 <span className="lm-eyebrow-dot" />
                 SMART SECURITY CENTER
@@ -872,239 +911,253 @@ export default function LiveMonitoringPage() {
         )}
 
         {/* SUMMARY */}
-        {/* SUMMARY */}
-        <div className="lm-summary-heading">
-          <div>
-            <Text className="lm-section-kicker">TỔNG QUAN HỆ THỐNG</Text>
-            <Title level={4}>Trạng thái hiện tại</Title>
-          </div>
-
-          <div className="lm-summary-updated">
-            <Radio size={13} />
-            Cập nhật tự động mỗi 2 giây
-          </div>
-        </div>
-
-        <LiveStatsCard
-          onlineCount={onlineCount}
-          cameraCount={cameraItems.length}
-          totalPeople={totalPeople}
-          knownCount={knownCount}
-          unknownCount={unknownCount}
-        />
-        {/* CAMERA SECTION */}
-        <div className="lm-section-header">
-          <div>
-            <div className="lm-section-title">
-              <div className="lm-section-title-icon">
-                <Video size={18} />
-              </div>
-              <Title level={4}>Hình ảnh camera</Title>
-              <Tag color="success">AI DETECTION ON</Tag>
+        <section className="lm-section">
+          <div className="lm-section-heading">
+            <div>
+              <Text className="lm-section-kicker">TỔNG QUAN HỆ THỐNG</Text>
+              <Title level={4}>Trạng thái hiện tại</Title>
             </div>
 
-            <Text className="lm-section-description">
-              Hình ảnh và khung nhận diện được đồng bộ từ cùng một snapshot AI.
-            </Text>
+            <div className="lm-summary-updated">
+              <Radio size={13} />
+              <span>Tự động mỗi 2 giây</span>
+            </div>
           </div>
 
-          <div className="lm-camera-summary">
-            <span className="lm-camera-summary-online">
-              <span />
-              {onlineCount} trực tuyến
-            </span>
-            <span className="lm-camera-summary-total">
-              {cameraItems.length} camera
-            </span>
-          </div>
-        </div>
+          <LiveStatsCard
+            onlineCount={onlineCount}
+            cameraCount={cameraItems.length}
+            totalPeople={totalPeople}
+            knownCount={knownCount}
+            unknownCount={unknownCount}
+          />
+        </section>
 
-        {cameraItems.length === 0 ? (
-          <Card className="lm-empty-card">
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="Chưa có camera nào được cấu hình"
-            />
-          </Card>
-        ) : (
-          <Row gutter={[16, 16]} className="lm-camera-grid">
-            {cameraItems.map((camera) => {
-              const id = getCameraId(camera);
-              const key = String(id);
+        {/* CAMERA */}
+        <section className="lm-section lm-camera-section">
+          <div className="lm-section-heading lm-camera-section-heading">
+            <div>
+              <div className="lm-section-title">
+                <div className="lm-section-title-icon">
+                  <Video size={18} />
+                </div>
 
-              return (
-                <Col xs={24} md={12} xl={8} key={key}>
-                  <div
-                    className="lm-camera-fullscreen-target"
-                    ref={(element) => {
-                      frameElementsRef.current[key] = element;
-                    }}
-                  >
-                    <CameraFrame
-                      camera={camera}
-                      status={statusMap.get(key)}
-                      snapshot={snapshots[key]}
-                      selected={String(selectedCameraId) === key}
-                      onSelect={() => setSelectedCameraId(id)}
-                      onFullscreen={() => handleFullscreen(id)}
-                    />
-                  </div>
-                </Col>
-              );
-            })}
-          </Row>
-        )}
-
-        {/* DETAIL SECTION */}
-        <Card className="lm-detail-panel" bordered={false}>
-          <div className="lm-detail-header">
-            <div className="lm-detail-heading">
-              <div className="lm-detail-icon">
-                <ScanFace size={20} />
+                <Title level={4}>Hình ảnh camera</Title>
+                <Tag color="success">AI DETECTION ON</Tag>
               </div>
 
-              <div>
-                <Title level={4}>Chi tiết nhận diện</Title>
-                <Text>
-                  {selectedCamera
-                    ? getCameraName(selectedCamera)
-                    : "Chưa chọn camera"}
-                </Text>
-              </div>
+              <Text className="lm-section-description">
+                Hình ảnh và khung nhận diện được đồng bộ từ snapshot AI.
+              </Text>
             </div>
 
-            <Select
-              value={selectedCameraId}
-              onChange={setSelectedCameraId}
-              placeholder="Chọn camera"
-              className="lm-camera-select"
-              options={cameraItems.map((camera) => ({
-                value: getCameraId(camera),
-                label: getCameraName(camera),
-              }))}
-            />
+            <div className="lm-camera-summary">
+              <span className="lm-camera-summary-online">
+                <span />
+                {onlineCount} trực tuyến
+              </span>
+              <span className="lm-camera-summary-total">
+                {cameraItems.length} camera
+              </span>
+            </div>
           </div>
 
-          {selectedCamera ? (
-            <>
-              <div className="lm-detail-meta">
-                <div className="lm-detail-meta-left">
-                  <Tag
-                    color={
-                      selectedStatus?.connected && selectedStatus?.running
-                        ? "success"
-                        : "error"
-                    }
-                  >
-                    {selectedStatus?.connected && selectedStatus?.running
-                      ? "Đang hoạt động"
-                      : "Ngoại tuyến"}
-                  </Tag>
+          {cameraItems.length === 0 ? (
+            <Card className="lm-empty-card">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Chưa có camera nào được cấu hình"
+              />
+            </Card>
+          ) : (
+            <Row gutter={[16, 16]} className="lm-camera-grid">
+              {cameraItems.map((camera) => {
+                const id = getCameraId(camera);
+                const key = String(id);
 
-                  <Tag color="blue">
-                    {selectedSnapshot?.tracks?.length || 0} người trong khung
-                    hình
-                  </Tag>
+                return (
+                  <Col xs={24} sm={24} md={12} xl={8} key={key}>
+                    <div
+                      ref={(element) => {
+                        frameElementsRef.current[String(camera.id)] = element;
+                      }}
+                      className={`camera-frame ${
+                        mobileExpandedCamera === String(camera.id)
+                          ? "mobile-expanded"
+                          : ""
+                      }`}
+                    >
+                      <CameraFrame
+                        camera={camera}
+                        status={statusMap.get(key)}
+                        snapshot={snapshots[key]}
+                        selected={String(selectedCameraId) === key}
+                        onSelect={() => setSelectedCameraId(id)}
+                        onFullscreen={() => handleFullscreen(id)}
+                      />
+                    </div>
+                  </Col>
+                );
+              })}
+            </Row>
+          )}
+        </section>
 
-                  <span className="lm-detail-time">
-                    <Clock3 size={13} />
-                    Frame: {formatTime(selectedSnapshot?.capturedAt)}
-                  </span>
+        {/* DETAIL */}
+        <section className="lm-section">
+          <Card className="lm-detail-panel" bordered={false}>
+            <div className="lm-detail-header">
+              <div className="lm-detail-heading">
+                <div className="lm-detail-icon">
+                  <ScanFace size={20} />
                 </div>
 
-                <Button
-                  size="small"
-                  className="lm-detail-fullscreen"
-                  icon={
-                    fullscreen ? (
-                      <Minimize2 size={14} />
-                    ) : (
-                      <Maximize2 size={14} />
-                    )
-                  }
-                  onClick={() => handleFullscreen()}
-                >
-                  {fullscreen ? "Thu nhỏ" : "Toàn màn hình"}
-                </Button>
-              </div>
-
-              {(selectedSnapshot?.tracks || []).length > 0 ? (
-                <div className="lm-person-list">
-                  {selectedSnapshot.tracks.map((track) => {
-                    const isKnown = track.status === "known";
-                    const isUncertain = track.status === "uncertain";
-
-                    return (
-                      <div className="lm-person-row" key={track.tracking_id}>
-                        <div className="lm-person-main">
-                          <div
-                            className={`lm-person-avatar ${
-                              isKnown
-                                ? "known"
-                                : isUncertain
-                                  ? "uncertain"
-                                  : "unknown"
-                            }`}
-                          >
-                            <ScanFace size={19} />
-                          </div>
-
-                          <div className="lm-person-info">
-                            <Text strong ellipsis>
-                              {getTrackLabel(track)}
-                            </Text>
-                            <Text className="lm-person-id">
-                              ID: {track.tracking_id || "--"}
-                            </Text>
-                          </div>
-                        </div>
-
-                        <div className="lm-person-meta">
-                          <Tag
-                            color={
-                              isKnown
-                                ? "success"
-                                : isUncertain
-                                  ? "warning"
-                                  : "error"
-                            }
-                          >
-                            {isKnown
-                              ? "Đã nhận diện"
-                              : isUncertain
-                                ? "Chưa chắc chắn"
-                                : "Người lạ"}
-                          </Tag>
-
-                          <Tooltip title="Lần cuối phát hiện">
-                            <span className="lm-person-time">
-                              <Clock3 size={12} />
-                              {formatTime(track.last_seen_at)}
-                            </span>
-                          </Tooltip>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="lm-detail-empty">
-                  <div className="lm-detail-empty-icon">
-                    <ScanFace size={25} />
-                  </div>
-                  <Text strong>Chưa phát hiện người</Text>
-                  <Text type="secondary">
-                    Camera hiện chưa ghi nhận đối tượng nào trong khung hình.
+                <div>
+                  <Title level={4}>Chi tiết nhận diện</Title>
+                  <Text>
+                    {selectedCamera
+                      ? getCameraName(selectedCamera)
+                      : "Chưa chọn camera"}
                   </Text>
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="lm-detail-empty">
-              <Empty description="Chọn camera để xem chi tiết nhận diện" />
+              </div>
+
+              <Select
+                value={selectedCameraId}
+                onChange={setSelectedCameraId}
+                placeholder="Chọn camera"
+                className="lm-camera-select"
+                options={cameraItems.map((camera) => ({
+                  value: getCameraId(camera),
+                  label: getCameraName(camera),
+                }))}
+              />
             </div>
-          )}
-        </Card>
+
+            {selectedCamera ? (
+              <>
+                <div className="lm-detail-meta">
+                  <div className="lm-detail-meta-left">
+                    <Tag
+                      color={
+                        selectedStatus?.connected && selectedStatus?.running
+                          ? "success"
+                          : "error"
+                      }
+                    >
+                      {selectedStatus?.connected && selectedStatus?.running
+                        ? "Đang hoạt động"
+                        : "Ngoại tuyến"}
+                    </Tag>
+
+                    <Tag color="blue">
+                      {selectedSnapshot?.tracks?.length || 0} người trong khung
+                      hình
+                    </Tag>
+
+                    <span className="lm-detail-time">
+                      <Clock3 size={13} />
+                      Frame: {formatTime(selectedSnapshot?.capturedAt)}
+                    </span>
+                  </div>
+
+                  <Button
+                    size="small"
+                    className="lm-detail-fullscreen"
+                    icon={
+                      fullscreen ? (
+                        <Minimize2 size={14} />
+                      ) : (
+                        <Maximize2 size={14} />
+                      )
+                    }
+                    onClick={() => handleFullscreen()}
+                  >
+                    {fullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+                  </Button>
+                </div>
+
+                {(selectedSnapshot?.tracks || []).length > 0 ? (
+                  <div className="lm-person-list">
+                    {selectedSnapshot.tracks.map((track) => {
+                      const isKnown = track.status === "known";
+                      const isUncertain = track.status === "uncertain";
+
+                      return (
+                        <div className="lm-person-row" key={track.tracking_id}>
+                          <div className="lm-person-main">
+                            <div
+                              className={`lm-person-avatar ${
+                                isKnown
+                                  ? "known"
+                                  : isUncertain
+                                    ? "uncertain"
+                                    : "unknown"
+                              }`}
+                            >
+                              <ScanFace size={19} />
+                            </div>
+
+                            <div className="lm-person-info">
+                              <Text strong ellipsis>
+                                {getTrackLabel(track)}
+                              </Text>
+
+                              <Text className="lm-person-id">
+                                ID: {track.tracking_id || "--"}
+                              </Text>
+                            </div>
+                          </div>
+
+                          <div className="lm-person-meta">
+                            <Tag
+                              color={
+                                isKnown
+                                  ? "success"
+                                  : isUncertain
+                                    ? "warning"
+                                    : "error"
+                              }
+                            >
+                              {isKnown
+                                ? "Đã nhận diện"
+                                : isUncertain
+                                  ? "Chưa chắc chắn"
+                                  : "Người lạ"}
+                            </Tag>
+
+                            <Tooltip title="Lần cuối phát hiện">
+                              <span className="lm-person-time">
+                                <Clock3 size={12} />
+                                {formatTime(track.last_seen_at)}
+                              </span>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="lm-detail-empty">
+                    <div className="lm-detail-empty-icon">
+                      <ScanFace size={25} />
+                    </div>
+
+                    <Text strong>Chưa phát hiện người</Text>
+
+                    <Text type="secondary">
+                      Camera hiện chưa ghi nhận đối tượng nào trong khung hình.
+                    </Text>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="lm-detail-empty">
+                <Empty description="Chọn camera để xem chi tiết nhận diện" />
+              </div>
+            )}
+          </Card>
+        </section>
 
         <div className="lm-page-footnote">
           <CircleAlert size={14} />
