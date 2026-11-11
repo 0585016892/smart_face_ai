@@ -1,0 +1,280 @@
+.webcam-recognition-modal .ant-modal-body {
+  padding-top: 12px;
+}
+
+.webcam-recognition-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.8fr);
+  gap: 20px;
+}
+
+.webcam-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.webcam-preview-header h5.ant-typography {
+  margin: 0 0 4px;
+}
+
+.webcam-preview-header .ant-tag,
+.webcam-live-indicator,
+.webcam-scan-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.webcam-video-container {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 13px;
+  background: #0b1220;
+  aspect-ratio: 4 / 3;
+}
+
+.webcam-video {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.webcam-video.active {
+  display: block;
+}
+
+.webcam-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+}
+
+.webcam-video-placeholder .ant-typography {
+  color: #cbd5e1;
+}
+
+.webcam-live-indicator {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: rgba(220, 38, 38, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+}
+
+.webcam-live-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  animation: webcam-pulse 1.2s infinite;
+}
+
+.webcam-scan-indicator {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  font-size: 11px;
+}
+
+.webcam-hidden-canvas {
+  display: none;
+}
+
+.webcam-controls {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.webcam-controls .ant-btn {
+  min-width: 220px;
+}
+
+.webcam-scan-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 17px;
+  padding: 13px;
+  border: 1px solid #e8edf4;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.webcam-scan-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.webcam-scan-meta .ant-typography {
+  font-size: 10px;
+}
+
+.webcam-scan-meta strong {
+  color: #172033;
+  font-size: 12px;
+}
+
+.webcam-result-section {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #e8edf4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.webcam-result-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #edf0f5;
+  color: #2563eb;
+}
+
+.webcam-result-heading h5.ant-typography {
+  margin: 0;
+  color: #172033;
+}
+
+.webcam-result-empty {
+  display: flex;
+  min-height: 250px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.webcam-result-empty .ant-typography {
+  max-width: 220px;
+  font-size: 12px;
+}
+
+.webcam-result-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 5px 10px;
+  border-radius: 20px;
+}
+
+.webcam-person-name {
+  margin-top: 22px;
+}
+
+.webcam-person-name h3.ant-typography {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+  font-size: 21px;
+}
+
+.webcam-similarity {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.webcam-similarity h2.ant-typography {
+  margin: 5px 0 0;
+  color: #2563eb;
+  font-size: 28px;
+}
+
+.webcam-person-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.webcam-person-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.webcam-person-details .ant-typography {
+  font-size: 11px;
+}
+
+.webcam-person-details strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.webcam-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #edf0f5;
+}
+
+.webcam-candidates > .ant-typography {
+  font-size: 12px;
+}
+
+.webcam-candidate {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.webcam-candidate strong {
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+@keyframes webcam-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 700px) {
+  .webcam-recognition-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .webcam-video-container {
+    min-height: 220px;
+  }
+
+  .webcam-scan-meta {
+    grid-template-columns: 1fr;
+  }
+}
